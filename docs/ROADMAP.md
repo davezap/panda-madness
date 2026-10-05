@@ -1,67 +1,77 @@
 # Panda Madness — Roadmap
 
-Status: **draft v0.1** — for discussion. Nothing here is decided until marked ✅.
+Status: **v0.4** — design decisions settled; remaining questions are answered by the Phase 0 spike. Sources: [2026-10-02 scoping conversation](conversations/2026-10-02-scoping.md) and 2026-10-05 discussion. See [design.md](design.md) and [behaviours.md](behaviours.md).
 
-A desktop panda widget for Windows, Apple platforms and Ubuntu: a small animated panda that lives on the desktop, reacts to the user, and is fun without being annoying.
+A cute, slightly chaotic, thick-line-art panda that lives on your desktop. Windows first; Ubuntu and macOS later.
 
-## Open questions (answer these first)
+## Decisions log
 
-1. **"iOS" — iPhone/iPad, or macOS?** A free-roaming desktop widget is a macOS thing; on iOS the equivalent is a WidgetKit home-screen widget (static snapshots, limited animation) or an app. This changes the tech choice a lot.
-2. **What does the panda do?** Options: idle/sleep/eat animations; walks along the taskbar/window edges; reacts to mouse (pet, poke, drag-and-drop); reacts to system events (time of day, CPU load, notifications, idle time); speech bubbles; mini-games.
-3. **Character / art:** who draws it — hand-drawn sprites, vector, 3D? Style reference? Resolution and frame count budget?
-4. **Tech stack preference:** one cross-platform codebase vs native per platform? Any language preference (C/C++, Rust, C#, Python, JS)?
-5. **Distribution:** GitHub releases only, or app stores (Microsoft Store, Mac App Store, Snap/Flathub)? Signing/notarisation budget?
-6. **Licence and openness:** open source? Licence for code vs art?
+- ✅ v1 = single animated panda, transparent, always on top, minimal settings, local-only. No backend, AI brain, stats, shops, accounts or sync.
+- ✅ Windows first; Ubuntu desktop and macOS later. Design around Wayland's restrictions.
+- ✅ Go + SDL3. No Tauri/Wails/web views. (Go reconfirmed 2026-10-05 after reviewing C, C++, Rust, C#, Zig/Odin.)
+- ✅ Platform-agnostic engine + thin OS adapter + replaceable art pack folder.
+- ✅ Art: thick clean line art, flat black and white, no textures or shading. AI-assisted.
+- ✅ Limited animation: drawings at 8–12 FPS, motion at 60 FPS.
+- ✅ v1 behaviours: idle/walk/hop, Superman crash, curious climber (windows), eating bamboo, sleeping, startled by dialog, mouse hunt, drag & throw.
+- ✅ Desktop icons, taskbar/dock and window contents are post-v1.
+- ✅ (2026-10-05) Engine works in desktop coordinates; windows are just viewports. See [design.md § Window strategy](design.md#window-strategy-).
+- ✅ (2026-10-05) Default: small look-ahead window that covers where the panda is going; re-placed only near its edge, not every frame.
+- ✅ (2026-10-05) Rare big/fast moves: temporary transparent full-screen burst overlay (one per monitor, pre-created hidden), closed when the sequence ends.
+- ✅ (2026-10-05) Relay windows kept as a fallback only if the burst overlay misbehaves.
+- ✅ (2026-10-05) Ubuntu Wayland: plan to run via XWayland; confirm in Phase 5.
+- ✅ (2026-10-05) Panda size: 170 × 170 logical px by default (2560 × 1440 at 100 % scaling); art frames exported at 340 × 340. See [design.md § Panda size](design.md#panda-size-).
+- ✅ (2026-10-05) v1 has a tray icon (show/hide, pause, size, start with computer, quit). See [design.md § Tray icon](design.md#tray-icon-).
+- ✅ (2026-10-05) Start with computer: **on by default**, tray toggle to turn off.
+- ✅ (2026-10-05) Licence: Apache 2.0 for code and art.
+- ✅ (2026-10-05) SDL3 from Go via a cgo-free (purego) binding; which one is decided in the spike.
 
-## Candidate tech stacks
+## Open questions
 
-| Option | Pros | Cons |
-| --- | --- | --- |
-| **Tauri (Rust + web canvas)** | Small binaries, transparent windows, Win/macOS/Linux, iOS support maturing | Transparent click-through windows need per-OS tweaks; Linux/Wayland quirks |
-| **Godot 4** | Great for sprite animation; exports Win/macOS/Linux/iOS; transparent borderless windows | Bigger runtime; desktop-integration features (tray, click-through) are limited |
-| **Qt 6 (C++/QML)** | Mature, native feel, good transparency/tray support on all desktops | Licensing considerations; heavier toolchain |
-| **Native per platform** | Best integration (WidgetKit on iOS, layered windows on Windows) | Three codebases |
-
-Initial leaning (to discuss): a shared core (animation state machine + assets) with a thin per-platform shell.
+All answered by the Phase 0 spike — see [design.md § Open questions](design.md#open-questions): binding choice, click-through, burst overlay quirks.
 
 ## Phases
 
 ### Phase 0 — Foundations
-- Answer open questions; pick stack.
-- Repo layout, licence, `.gitignore`, contribution notes.
-- CI build skeleton for each target (note: Metatrash refuses pushes to `.github/workflows/`, so CI files are added on GitHub directly).
+- Choose Go SDL3 binding (purego: go-sdl3 or purego-sdl3).
+- Throwaway spike on Windows:
+  - small transparent, borderless, always-on-top window; move/resize it;
+  - click-through on empty pixels, in the small window and in a full-monitor overlay, and its cost;
+  - burst overlay: show/hide without flicker or focus stealing, no fullscreen-app detection, clean handoff to/from the small window;
+  - SDL3 tray icon with a menu.
+- Repo layout (`cmd/`, `engine/`, `platform/`, `art/`), Apache 2.0 `LICENSE`, `.gitignore`.
+- Art pack manifest schema.
+- CI build (added on GitHub directly — Metatrash won't push `.github/workflows/`).
 
-### Phase 1 — Panda on screen (MVP)
-- Transparent, borderless, always-on-top window with one idle animation.
-- Drag to move; position remembered between runs.
-- Tray/menu-bar icon: show/hide, quit.
-- Runs on Windows first, then Ubuntu, then Apple.
+### Phase 1 — Panda on screen (Windows)
+- Transparent always-on-top window; placeholder art.
+- Tray icon: show/hide, pause, quit.
+- Viewport planner (look-ahead sizing and re-placement).
+- Art pack loader + animation player (frames, fps, loop, anchor).
+- Idle / walk / hop; scheduler that picks random idles.
+- Drag & throw with soft physics (it's also the easiest way to test the panda).
 
-### Phase 2 — Personality
-- Animation state machine: idle, sleep, eat bamboo, wave, fall/bounce.
-- Mouse interactions: pet, poke, pick up and drop.
-- Time-of-day behaviour (sleepy at night).
-- Click-through when not hovered.
+### Phase 2 — Gags
+- Burst overlay for big moves.
+- Superman crash (screen edges, across monitors).
+- Eating bamboo, sleeping.
+- Mouse hunt.
 
-### Phase 3 — Desktop awareness
-- Walk along the taskbar/dock and window edges.
-- React to idle time, system load, battery, notifications (opt-in).
-- Multi-monitor and DPI scaling.
+### Phase 3 — Desktop awareness (Windows)
+- Scene model: screen edges + visible window rectangles.
+- Curious climber.
+- Startled by dialog (new top-level window / foreground change).
 
-### Phase 4 — Polish and release
-- Settings window (size, behaviours, quiet hours, autostart).
-- Installers/packages per platform; signing/notarisation.
-- iOS/home-screen variant if in scope.
-- v1.0 release.
+### Phase 4 — Art and v1 release
+- Final art pack (~47 drawings at 340 × 340, plus tray icon) replacing placeholders.
+- Tray additions: size (50–200 %), start with computer (on by default).
+- Windows build + release on GitHub. **v1.0.**
+
+### Phase 5 — Ubuntu and macOS
+- Ubuntu: X11, and Wayland via XWayland; behaviours needing window rectangles or the global cursor degrade gracefully where unavailable. Tray via AppIndicator.
+- macOS: adapter, menu-bar icon, signing/notarisation.
 
 ### Later / ideas
-- Multiple pandas, skins/costumes, speech bubbles, mini-games, plugin hooks.
-
-## Platform notes
-- **Windows:** layered windows for per-pixel transparency; autostart via registry or Startup folder.
-- **Ubuntu:** X11 vs Wayland differ for always-on-top, positioning and click-through; Wayland restricts global window placement. Decide minimum Ubuntu version.
-- **macOS:** borderless NSWindow at floating level; notarisation needed for distribution.
-- **iOS:** no free-floating desktop overlays; WidgetKit or an in-app experience only.
-
-## Decisions log
-_(empty — add ✅ entries as we agree things)_
+- Desktop icons and taskbar/dock as climbable objects.
+- Smarter startle (errors/notifications vs app switches).
+- Alternative art packs.
+- Relay windows (only if the burst overlay proves unreliable somewhere).
